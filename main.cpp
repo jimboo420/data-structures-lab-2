@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <vector>
 
 using namespace std;
 
@@ -9,11 +10,13 @@ using namespace std;
 struct User {
     string username;
     string password;
+    vector<string> permissions;      // Permissions for fine-grained control
     User* next;
 
-    User(string u, string p) {
+    User(const string& u, const string& p, const vector<string>& perm = {"view"}) {
         username = u;
         password = p;
+        permissions = perm;
         next = nullptr;
     }
 };
@@ -33,11 +36,11 @@ User* findUser(User* head, const string& username) {
     return nullptr;
 }
 
-bool insertUser(User*& head, const string& username, const string& password) {
+bool insertUser(User*& head, const string& username, const string& password, const vector<string>& perm = {"view"}) {
     if (findUser(head, username) != nullptr) {
         return false;
     }
-    User* newUser = new User(username, password);
+    User* newUser = new User(username, password, perm);
     if (head == nullptr) {
         head = newUser;
         return true;
@@ -53,6 +56,22 @@ bool insertUser(User*& head, const string& username, const string& password) {
 bool authenticate(User* head, const string& username, const string& password) {
     User* user = findUser(head, username);
     return (user != nullptr && user->password == password);
+}
+
+bool authorize(User* head, const string& username, const string& action) {
+    User* user = findUser(head, username);
+    if (user == nullptr) {
+        return false;
+    }
+    if (user->permissions.empty()) {
+        return false;
+    }
+    for (const auto& perm : user->permissions) {
+        if (perm == action) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool removeFront(User*& head) {
@@ -121,14 +140,21 @@ int main() {
     // Check size of an empty list
     cout << "Initial size of list: " << size(head) << endl;
 
-    insertUser(head, "alice", "pass123");
-    insertUser(head, "bob", "password");
-    insertUser(head, "charlie", "cpass");
+    insertUser(head, "alice", "pass123", {"view"});
+    insertUser(head, "bob", "password", {"view", "edit"});
+    insertUser(head, "charlie", "cpass", {"view", "edit", "create", "delete"});
 
     // Check size after insertions
     cout << "List after insertions: ";
     printUsers(head);
     cout << "Current size: " << size(head) << endl;
+
+    // Authorization tests
+    cout << "Authorization: alice 'view': " << (authorize(head, "alice", "view") ? "Allowed" : "Denied") << endl;
+    cout << "Authorization: alice 'edit': " << (authorize(head, "alice", "edit") ? "Allowed" : "Denied") << endl;
+    cout << "Authorization: bob 'edit': " << (authorize(head, "bob", "edit") ? "Allowed" : "Denied") << endl;
+    cout << "Authorization: bob 'create': " << (authorize(head, "bob", "create") ? "Allowed" : "Denied") << endl;
+    cout << "Authorization: charlie 'delete': " << (authorize(head, "charlie", "delete") ? "Allowed" : "Denied") << endl;
 
     // Remove a node and check the size again
     removeByUsername(head, "bob");
